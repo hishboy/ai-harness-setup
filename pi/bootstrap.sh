@@ -12,10 +12,11 @@ set -e
 command -v pi >/dev/null 2>&1 ||
   { npm install -g --no-fund --no-audit @earendil-works/pi-coding-agent@latest && (pi update || true); }
 
-# --- AGENTS.md: substitute the VM's public host -----------------------------
-# Pi reads AGENTS.md; replace the __HOST__ placeholder with this VM's host.
-[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] &&
-  sed -i "s/__HOST__/$HOSTNAME/g" /workspace/AGENTS.md || true
+# --- seed the shared agent primer -------------------------------------------
+# Seed the shared agent primer from the repo root (single source of truth).
+RAW_BASE="$(echo "${TRIBES_HARNESS_REPO:-https://github.com/tribes-protocol/ai-harness-setup}" | sed 's#//github\.com#//raw.githubusercontent.com#')"
+curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || true
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] && sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md
 
 # --- proxy-routed config ----------------------------------------------------
 # Pi → an openai-completions provider declared in models.json. Pi does NOT
@@ -50,9 +51,21 @@ if [ -n "$TRIBES_LLM_MODEL" ] && [ -n "$API_BASE_URL" ] && [ -n "$TRIBES_API_KEY
   fill "$m" "__TRIBES_MODELS__" "$pi_models"
   fill "$s" "__TRIBES_MODEL__" "$TRIBES_LLM_MODEL"
 else
-  # No proxy env (BYO key) — never leave raw placeholders on disk. Drop both seed
-  # files; pi then falls back to its own provider/creds.
-  rm -f /workspace/.pi/agent/models.json /workspace/.pi/agent/settings.json
+  # No proxy env (BYO key) — never leave raw placeholders on disk. models.json is
+  # ONLY the tribes provider, so drop it; pi falls back to its own provider/creds.
+  # settings.json carries "theme" (pi's Automatic mode = follow the terminal's
+  # light/dark), which is independent of our proxy — KEEP it, but drop the now-dead
+  # defaultProvider/defaultModel that referenced the absent tribes provider.
+  rm -f /workspace/.pi/agent/models.json
+  s=/workspace/.pi/agent/settings.json
+  [ -e "$s" ] && command -v bun >/dev/null 2>&1 &&
+    bun -e '
+      const f = process.argv[1];
+      const s = require(f);
+      delete s.defaultProvider;
+      delete s.defaultModel;
+      require("fs").writeFileSync(f, JSON.stringify(s));
+    ' "$s" || true
 fi
 
 # --- safety net -------------------------------------------------------------

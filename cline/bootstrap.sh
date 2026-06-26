@@ -19,10 +19,11 @@ set -e
 command -v cline >/dev/null 2>&1 ||
   npm install -g --no-fund --no-audit cline@latest
 
-# --- AGENTS.md: substitute the VM's public host -----------------------------
-# Cline reads AGENTS.md; replace the __HOST__ placeholder with this VM's host.
-[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] &&
-  sed -i "s/__HOST__/$HOSTNAME/g" /workspace/AGENTS.md || true
+# --- seed the shared agent primer -------------------------------------------
+# Seed the shared agent primer from the repo root (single source of truth).
+RAW_BASE="$(echo "${TRIBES_HARNESS_REPO:-https://github.com/tribes-protocol/ai-harness-setup}" | sed 's#//github\.com#//raw.githubusercontent.com#')"
+curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || true
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] && sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md
 
 # --- proxy-routed config ----------------------------------------------------
 # Cline → OpenAI-Compatible provider via its own `cline auth` command (the

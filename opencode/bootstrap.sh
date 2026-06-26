@@ -12,10 +12,11 @@ set -e
 command -v opencode >/dev/null 2>&1 ||
   npm install -g --no-fund --no-audit opencode-ai@latest
 
-# --- AGENTS.md: substitute the VM's public host -----------------------------
-# Replace the __HOST__ placeholder with this VM's public host.
-[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] &&
-  sed -i "s/__HOST__/$HOSTNAME/g" /workspace/AGENTS.md || true
+# --- seed the shared agent primer -------------------------------------------
+# Seed the shared agent primer from the repo root (single source of truth).
+RAW_BASE="$(echo "${TRIBES_HARNESS_REPO:-https://github.com/tribes-protocol/ai-harness-setup}" | sed 's#//github\.com#//raw.githubusercontent.com#')"
+curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || true
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] && sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md
 
 # --- proxy-routed config ----------------------------------------------------
 # opencode → @ai-sdk/openai-compatible provider (appends /chat/completions to

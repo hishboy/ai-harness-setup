@@ -2,8 +2,10 @@
 # grok harness — bootstrap (runs ONCE, as root, cwd /workspace, under sh).
 # Installs the xAI grok CLI and stamps the host into AGENTS.md. grok's only
 # FILE-based config is its theme (.grok/config.toml, committed as a SEED FILE with
-# a __TRIBES_THEME__ placeholder) — that placeholder is filled on EVERY launch in
-# launch.sh, not here. grok's proxy is ENV-only (GROK_* vars), also in launch.sh.
+# a __TRIBES_THEME__ placeholder) — we fill that placeholder HERE from the
+# create-time TRIBES_THEME so the file is valid (no raw placeholder) and survives
+# the end-of-bootstrap safety net. launch.sh re-seds it each launch so a theme
+# toggle takes effect on relaunch. grok's proxy is ENV-only (GROK_* vars), in launch.sh.
 
 set -e
 
@@ -13,20 +15,25 @@ if ! command -v grok >/dev/null 2>&1; then
   curl -fsSL https://x.ai/cli/install.sh | GROK_BIN_DIR=/usr/local/bin bash || true
 fi
 
-# --- stamp the host into the primer -----------------------------------------
-# AGENTS.md ships with a __HOST__ placeholder; substitute the VM's public
-# subdomain so the agent knows its live URL. (grok reads AGENTS.md.)
-host="${HOSTNAME:-$(cat /etc/hostname 2>/dev/null)}"
-if [ -n "$host" ]; then
-  for file in /workspace/AGENTS.md; do
-    [ -e "$file" ] && sed -i "s|__HOST__|$host|g" "$file"
-  done
+# --- fill the theme placeholder (FILE config) -------------------------------
+# .grok/config.toml ships as a SEED with theme = "__TRIBES_THEME__". Substitute
+# the create-time theme so the committed file ends up CONCRETE (light/dark) — no
+# raw placeholder left for the safety net below to delete. Default dark.
+theme=$([ "$TRIBES_THEME" = light ] && echo light || echo dark)
+if [ -e /workspace/.grok/config.toml ]; then
+  sed -i "s|__TRIBES_THEME__|$theme|g" /workspace/.grok/config.toml
 fi
+
+# --- seed the shared agent primer -------------------------------------------
+# Seed the shared agent primer from the repo root (single source of truth).
+RAW_BASE="$(echo "${TRIBES_HARNESS_REPO:-https://github.com/tribes-protocol/ai-harness-setup}" | sed 's#//github\.com#//raw.githubusercontent.com#')"
+curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || true
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] && sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md
 
 # --- safety net -------------------------------------------------------------
 # Belt-and-suspenders: no file under /workspace may survive bootstrap with a raw
 # __TRIBES_* placeholder. grok's ONLY placeholder (__TRIBES_THEME__ in
-# .grok/config.toml) is filled per-launch in launch.sh, which also recreates the
-# file if missing — so removing it here is harmless. AGENTS.md only carries
-# __HOST__, so it is not matched.
+# .grok/config.toml) is now filled above, so the config is CONCRETE and is NOT
+# matched here. AGENTS.md only carries __HOST__, so it is not matched either. This
+# only fires if some file slips through unfilled.
 grep -rlZ "__TRIBES_" /workspace 2>/dev/null | xargs -0 rm -f 2>/dev/null || true

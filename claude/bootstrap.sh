@@ -11,15 +11,13 @@ set -e
 # --- install the harness binary ---------------------------------------------
 npm install -g --no-fund --no-audit @anthropic-ai/claude-code@latest || true
 
-# --- stamp the host into the primer -----------------------------------------
-# AGENTS.md/CLAUDE.md ship with a __HOST__ placeholder; substitute the VM's
-# public subdomain so the agent knows its live URL.
-host="${HOSTNAME:-$(cat /etc/hostname 2>/dev/null)}"
-if [ -n "$host" ]; then
-  for file in /workspace/AGENTS.md /workspace/CLAUDE.md; do
-    [ -e "$file" ] && sed -i "s|__HOST__|$host|g" "$file"
-  done
-fi
+# --- seed the shared agent primer -------------------------------------------
+# Seed the shared agent primer from the repo root (single source of truth).
+RAW_BASE="$(echo "${TRIBES_HARNESS_REPO:-https://github.com/tribes-protocol/ai-harness-setup}" | sed 's#//github\.com#//raw.githubusercontent.com#')"
+curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || true
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] && sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md
+# claude also reads CLAUDE.md — give it the same primer.
+[ -e /workspace/AGENTS.md ] && cp /workspace/AGENTS.md /workspace/CLAUDE.md
 
 # --- safety net -------------------------------------------------------------
 # Belt-and-suspenders: no file under /workspace may survive with a raw

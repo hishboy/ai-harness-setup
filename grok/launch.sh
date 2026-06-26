@@ -5,13 +5,13 @@
 
 # --- theme (per-launch FILE config) -----------------------------------------
 # Grok (xAI, ratatui) has NO OSC/auto theme detection — it hard-defaults to dark
-# (GrokNight) and only reads its theme from .grok/config.toml [ui] theme. The file
-# is committed as a SEED with theme = "__TRIBES_THEME__"; we sed the live theme
-# line in place on every launch so a theme toggle takes effect on relaunch. The
-# regex matches the `theme = "..."` line generically, so it works on both the
-# original placeholder (first launch) and a previously-substituted value
-# (relaunches). We do NOT touch the tty: an OSC-11 probe right before exec wedged
-# grok's pager so it never painted its first frame.
+# (GrokNight) and only reads its theme from .grok/config.toml [ui] theme. The
+# placeholder was already filled to a CONCRETE theme in bootstrap.sh; here we
+# re-sed the live theme line in place on every launch so a theme toggle takes
+# effect on relaunch. The regex matches the `theme = "..."` line generically, so
+# it works on any prior value (concrete or, defensively, an unfilled placeholder).
+# We do NOT touch the tty: an OSC-11 probe right before exec wedged grok's pager
+# so it never painted its first frame.
 theme=$([ "$TRIBES_THEME" = light ] && echo light || echo dark)
 mkdir -p /workspace/.grok
 [ -e /workspace/.grok/config.toml ] || printf '[ui]\ntheme = "__TRIBES_THEME__"\n' > /workspace/.grok/config.toml

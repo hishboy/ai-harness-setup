@@ -6,9 +6,9 @@
 # the initial __TRIBES_SKIN__ placeholder and a previously-set value, so relaunch
 # toggles work. Then exec hermes with --yolo (bypasses dangerous-command
 # approvals; the microVM is the security boundary).
-# Only re-sed when the config file exists. In the BYO-key path bootstrap.sh
-# removes it (hermes falls back to its built-in provider); guard so sed -i does
-# not recreate/break a removed file.
+# The ^  skin: line is present in BOTH configs bootstrap.sh can produce: the full
+# proxy config and the BYO skin-only config (display block only). Guard on [ -f ]
+# anyway so a missing file never makes sed -i create/break one.
 if [ -f /workspace/.hermes/config.yaml ]; then
   skin=$([ "$TRIBES_THEME" = light ] && echo daylight || echo default)
   sed -i "s|^  skin:.*|  skin: $skin|" /workspace/.hermes/config.yaml

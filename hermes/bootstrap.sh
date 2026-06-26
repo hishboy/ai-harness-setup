@@ -11,10 +11,11 @@ set -e
 command -v hermes >/dev/null 2>&1 ||
   curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 
-# --- AGENTS.md: substitute the VM's public host -----------------------------
-# Hermes reads AGENTS.md; replace the __HOST__ placeholder with this VM's host.
-[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] &&
-  sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md || true
+# --- seed the shared agent primer -------------------------------------------
+# Seed the shared agent primer from the repo root (single source of truth).
+RAW_BASE="$(echo "${TRIBES_HARNESS_REPO:-https://github.com/tribes-protocol/ai-harness-setup}" | sed 's#//github\.com#//raw.githubusercontent.com#')"
+curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || true
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] && sed -i "s|__HOST__|$HOSTNAME|g" /workspace/AGENTS.md
 
 # --- proxy-routed config ----------------------------------------------------
 # Fill the seed config's placeholders. Hermes declares a user `tribes` provider in
@@ -34,10 +35,13 @@ if [ -n "$TRIBES_LLM_MODEL" ] && [ -n "$API_BASE_URL" ] && [ -n "$TRIBES_API_KEY
   skin=$([ "$TRIBES_THEME" = light ] && echo daylight || echo default)
   sed -i "s|^  skin:.*|  skin: $skin|" /workspace/.hermes/config.yaml
 else
-  # No proxy env (BYO key) — never leave raw placeholders on disk. Drop the seed
-  # entirely; hermes then falls back to its built-in Nous provider/OAuth.
-  # (launch.sh's skin re-sed is guarded with [ -f ] so a removed file stays gone.)
-  rm -f /workspace/.hermes/config.yaml
+  # No proxy env (BYO key) — drop the model:/providers: blocks so hermes falls back
+  # to its built-in Nous provider/OAuth, but KEEP a skin-only display block: the
+  # theme is independent of our proxy and a light-mode user must still get the
+  # daylight skin. Resolve the skin now and rewrite the file to ONLY the display
+  # block (no raw __TRIBES_* survives; launch.sh re-seds the same `skin:` line).
+  skin=$([ "$TRIBES_THEME" = light ] && echo daylight || echo default)
+  printf 'display:\n  skin: %s\n' "$skin" >/workspace/.hermes/config.yaml
 fi
 
 # --- safety net -------------------------------------------------------------
