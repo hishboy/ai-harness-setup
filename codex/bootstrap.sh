@@ -63,4 +63,9 @@ fi
 # Belt-and-suspenders: no file under /workspace may survive with a raw
 # __TRIBES_* placeholder (broken/invalid config). AGENTS.md only carries
 # __HOST__, so it is not matched.
-grep -rlZ "__TRIBES_" /workspace 2>/dev/null | xargs -0 rm -f 2>/dev/null || true
+# NEVER delete *.sh — bootstrap.sh/launch.sh legitimately contain __TRIBES_ in
+# their sed patterns/fallbacks; only NON-script files with a raw placeholder are
+# broken config and get removed.
+grep -rl "__TRIBES_" /workspace 2>/dev/null | while IFS= read -r f; do
+  case "$f" in *.sh) ;; *) rm -f "$f" ;; esac
+done

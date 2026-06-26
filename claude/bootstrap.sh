@@ -24,4 +24,9 @@ curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || tru
 # __TRIBES_* placeholder. claude config is fully static (no placeholders) and the
 # proxy is ENV-only in launch.sh, so this is a no-op guard. AGENTS.md/CLAUDE.md
 # only carry __HOST__, so they are not matched.
-grep -rlZ "__TRIBES_" /workspace 2>/dev/null | xargs -0 rm -f 2>/dev/null || true
+# NEVER delete *.sh — bootstrap.sh/launch.sh legitimately contain __TRIBES_ in
+# their sed patterns/fallbacks; only NON-script files with a raw placeholder are
+# broken config and get removed.
+grep -rl "__TRIBES_" /workspace 2>/dev/null | while IFS= read -r f; do
+  case "$f" in *.sh) ;; *) rm -f "$f" ;; esac
+done

@@ -36,4 +36,9 @@ curl -fsSL "$RAW_BASE/main/AGENTS.md" -o /workspace/AGENTS.md 2>/dev/null || tru
 # .grok/config.toml) is now filled above, so the config is CONCRETE and is NOT
 # matched here. AGENTS.md only carries __HOST__, so it is not matched either. This
 # only fires if some file slips through unfilled.
-grep -rlZ "__TRIBES_" /workspace 2>/dev/null | xargs -0 rm -f 2>/dev/null || true
+# NEVER delete *.sh — bootstrap.sh/launch.sh legitimately contain __TRIBES_ in
+# their sed patterns/fallbacks; only NON-script files with a raw placeholder are
+# broken config and get removed.
+grep -rl "__TRIBES_" /workspace 2>/dev/null | while IFS= read -r f; do
+  case "$f" in *.sh) ;; *) rm -f "$f" ;; esac
+done
