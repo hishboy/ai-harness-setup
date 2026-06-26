@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": "allow",
+  "theme": "system",
+  "provider": {
+    "tribes": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Tribes LLM Proxy",
+      "options": { "baseURL": "__TRIBES_PROXY__", "apiKey": "__TRIBES_TOKEN__" },
+      "models": { __TRIBES_MODELS__ }
+    }
+  },
+  "model": "tribes/__TRIBES_MODEL__"
+}

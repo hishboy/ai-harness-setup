@@ -1,0 +1,55 @@
+#!/bin/sh
+# OpenClaw harness bootstrap — runs ONCE on first boot, as root, cwd /workspace, sh.
+# Installs the OpenClaw CLI and fills the committed seed config. OpenClaw is fully
+# FILE-based — there is no env-based config — so launch.sh just execs it. The two
+# committed files are .openclaw/exec-approvals.json (fully static yolo defaults)
+# and .openclaw/openclaw.json (proxy provider + the live model catalog), the
+# latter carrying placeholders this script fills.
+set -e
+
+# --- install ----------------------------------------------------------------
+command -v openclaw >/dev/null 2>&1 ||
+  npm install -g --no-fund --no-audit openclaw@latest
+
+# --- AGENTS.md: substitute the VM's public host -----------------------------
+# Replace the __HOST__ placeholder with this VM's public host.
+[ -n "$HOSTNAME" ] && [ -e /workspace/AGENTS.md ] &&
+  sed -i "s/__HOST__/$HOSTNAME/g" /workspace/AGENTS.md || true
+
+# --- proxy-routed config ----------------------------------------------------
+# Fill the committed seed .openclaw/openclaw.json placeholders. OpenClaw uses a
+# custom openai-completions provider (appends /chat/completions) and REQUIRES it
+# to declare its models as an array of {id,name} objects — a provider with no
+# models is rejected as invalid ("custom model providers must declare models")
+# and openclaw exits to a shell. It does NOT auto-discover, so fetch the catalog
+# from the proxy's GET /models and embed each id (reusing id as name); fall back
+# to just the default model if the fetch hiccups at boot. Skip gracefully if the
+# proxy env is absent — the placeholders are left untouched and the CLI falls
+# back to whatever creds the user supplies.
+if [ -n "$TRIBES_LLM_MODEL" ] && [ -n "$API_BASE_URL" ] && [ -n "$TRIBES_API_KEY" ]; then
+  proxy="${API_BASE_URL}/llm/proxy"
+  token="$TRIBES_API_KEY"
+  claw_models=$(curl -s --max-time 10 "$proxy/models" -H "Authorization: Bearer $token" 2>/dev/null \
+    | grep -oE '"id":[[:space:]]*"[^"]+"' \
+    | sed -E 's/.*"([^"]+)"$/{"id": "\1", "name": "\1"}/' | paste -sd, -)
+  [ -n "$claw_models" ] || claw_models="{\"id\": \"$TRIBES_LLM_MODEL\", \"name\": \"$TRIBES_LLM_MODEL\"}"
+
+  # Substitute every placeholder via awk so the catalog array (which contains
+  # slashes, braces and quotes) is injected verbatim — no sed-delimiter clash.
+  # awk's gsub replacement treats `&` and `\` specially, so escape them in each
+  # value first; the placeholders are then replaced literally and JSON stays valid.
+  cfg=/workspace/.openclaw/openclaw.json
+  awk \
+    -v proxy="$proxy" -v token="$token" \
+    -v model="$TRIBES_LLM_MODEL" -v models="$claw_models" '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/&/, "\\&", s); return s }
+    BEGIN { proxy=esc(proxy); token=esc(token); model=esc(model); models=esc(models) }
+    {
+      gsub(/__TRIBES_PROXY__/, proxy)
+      gsub(/__TRIBES_TOKEN__/, token)
+      gsub(/__TRIBES_MODEL__/, model)
+      gsub(/__TRIBES_MODELS__/, models)
+      print
+    }
+  ' "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+fi

@@ -1,0 +1,12 @@
+model:
+  provider: tribes
+  default: "__TRIBES_MODEL__"
+providers:
+  tribes:
+    name: Tribes LLM Proxy
+    api: "__TRIBES_PROXY__"
+    api_key: "__TRIBES_TOKEN__"
+    transport: chat_completions
+    default_model: "__TRIBES_MODEL__"
+display:
+  skin: __TRIBES_SKIN__

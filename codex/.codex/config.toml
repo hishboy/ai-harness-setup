@@ -1,0 +1,13 @@
+model = "__TRIBES_MODEL__"
+model_provider = "tribes"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[model_providers.tribes]
+name = "Tribes LLM Proxy"
+base_url = "__TRIBES_PROXY__"
+env_key = "OPENAI_API_KEY"
+wire_api = "responses"
+
+[projects."/workspace"]
+trust_level = "trusted"

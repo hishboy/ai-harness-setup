@@ -1,0 +1,13 @@
+{
+  "agents": { "defaults": { "model": { "primary": "tribes/__TRIBES_MODEL__" } } },
+  "models": {
+    "providers": {
+      "tribes": {
+        "baseUrl": "__TRIBES_PROXY__",
+        "apiKey": "__TRIBES_TOKEN__",
+        "api": "openai-completions",
+        "models": [__TRIBES_MODELS__]
+      }
+    }
+  }
+}

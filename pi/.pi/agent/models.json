@@ -1,0 +1,1 @@
+{ "providers": { "tribes-llm-proxy": { "baseUrl": "__TRIBES_PROXY__", "api": "openai-completions", "apiKey": "__TRIBES_TOKEN__", "models": [__TRIBES_MODELS__] } } }
