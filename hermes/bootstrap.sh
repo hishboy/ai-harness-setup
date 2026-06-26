@@ -8,8 +8,11 @@
 set -e
 
 # --- install ----------------------------------------------------------------
+# --skip-setup: the Nous installer otherwise runs an INTERACTIVE `hermes setup`
+# wizard that reads /dev/tty and blocks bootstrap.sh forever (the dispatcher never
+# reaches its launch loop). We seed config.yaml ourselves below, so skip the wizard.
 command -v hermes >/dev/null 2>&1 ||
-  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup
 
 # --- seed the shared agent primer -------------------------------------------
 # Seed the shared agent primer from the repo root (single source of truth).
