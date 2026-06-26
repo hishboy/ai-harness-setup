@@ -12,7 +12,11 @@
 # it works on any prior value (concrete or, defensively, an unfilled placeholder).
 # We do NOT touch the tty: an OSC-11 probe right before exec wedged grok's pager
 # so it never painted its first frame.
-theme=$([ "$TRIBES_THEME" = light ] && echo light || echo dark)
+# Prefer the LIVE theme the in-VM bridge writes to /run/tribes-theme on every
+# browser theme frame (so a mid-session light/dark TOGGLE takes effect on the next
+# grok launch); fall back to the create-time TRIBES_THEME when that file is absent.
+theme="$(cat /run/tribes-theme 2>/dev/null)"
+[ "$theme" = light ] || [ "$theme" = dark ] || theme=$([ "$TRIBES_THEME" = light ] && echo light || echo dark)
 mkdir -p /workspace/.grok
 [ -e /workspace/.grok/config.toml ] || printf '[ui]\ntheme = "__TRIBES_THEME__"\n' > /workspace/.grok/config.toml
 sed -i "s|theme = \"[^\"]*\"|theme = \"$theme\"|" /workspace/.grok/config.toml
