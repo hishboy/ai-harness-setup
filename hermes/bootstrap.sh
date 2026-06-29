@@ -48,6 +48,20 @@ else
   printf 'display:\n  skin: %s\n' "$skin" >/workspace/.hermes/config.yaml
 fi
 
+# --- pre-stage heavy first-run deps -----------------------------------------
+# On a fresh rootfs hermes self-installs its node TUI deps + Playwright Chromium
+# + apt X11/font/ffmpeg libs on its FIRST INTERACTIVE start. That storm runs for
+# minutes and, if it lands during the first real session, floods the terminal and
+# breaks the exit->bash->relaunch cycle (the sandboxd:validate exitToShell
+# failure). `hermes postinstall` performs exactly those installs ONCE, here,
+# non-interactively, BEFORE the dispatcher's interactive loop — so every launch
+# (first boot AND relaunch) starts fast and quiet. Bounded + tolerant: a slow or
+# failed pre-stage must NOT abort bootstrap, or the once-only marker is dropped
+# and the whole install re-runs on the next relaunch.
+if command -v hermes >/dev/null 2>&1; then
+  HERMES_DISABLE_LAZY_INSTALLS=1 timeout 600 hermes postinstall </dev/null >/dev/null 2>&1 || true
+fi
+
 # --- safety net -------------------------------------------------------------
 # Belt-and-suspenders: no file under /workspace may survive with a raw
 # __TRIBES_* placeholder (broken/invalid config). AGENTS.md only carries
