@@ -21,8 +21,17 @@ set -e
 # hermes's bootstrap equally quiet. `|| true` so a non-zero installer exit can't
 # abort bootstrap (which would drop the once-only marker and re-run everything).
 if ! command -v hermes >/dev/null 2>&1; then
-  curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
-    | bash -s -- --skip-setup >/var/log/hermes-install.log 2>&1 || true
+  # Run the installer under `script` so it sees a PTY (isatty), then discard
+  # script's OWN stdout to /var/log + /dev/null. Why both: (1) a plain
+  # `... >/log 2>&1` makes the installer's stdout a NON-tty, and the Nous
+  # install.sh then builds a degraded TUI (the agent comes up missing its full
+  # UI), which breaks the resize check. (2) Letting it write to the terminal fills
+  # the bridge scrollback with the apt/Chromium install log, which the exit->bash
+  # reconnect replays and buries the exitToShell probe. `script` gives it a real
+  # tty (full TUI build) while keeping every byte off the dispatcher terminal.
+  script -qec \
+    'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup' \
+    /var/log/hermes-install.log >/dev/null 2>&1 || true
 fi
 
 # --- seed the shared agent primer -------------------------------------------
