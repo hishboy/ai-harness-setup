@@ -21,15 +21,8 @@ set -e
 # hermes's bootstrap equally quiet. `|| true` so a non-zero installer exit can't
 # abort bootstrap (which would drop the once-only marker and re-run everything).
 if ! command -v hermes >/dev/null 2>&1; then
-  # --skip-browser: do NOT install Playwright/Chromium + the apt X11/font/ffmpeg
-  # stack. That download is minutes long and, when it races the sandboxd:validate
-  # checks (esp. under concurrency), the harness isn't fully up — notStuck renders
-  # a sparse screen, resize can't reflow, and the exit cycle lands mid-install.
-  # The browser/computer_use toolsets are disabled in config.yaml, so Chromium is
-  # never used anyway. --non-interactive skips any input-needing stage.
   curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
-    | bash -s -- --skip-setup --skip-browser --non-interactive \
-      >/var/log/hermes-install.log 2>&1 || true
+    | bash -s -- --skip-setup >/var/log/hermes-install.log 2>&1 || true
 fi
 
 # --- seed the shared agent primer -------------------------------------------
@@ -63,10 +56,7 @@ else
   # daylight skin. Resolve the skin now and rewrite the file to ONLY the display
   # block (no raw __TRIBES_* survives; launch.sh re-seds the same `skin:` line).
   skin=$([ "$TRIBES_THEME" = light ] && echo daylight || echo default)
-  # Keep the same agent.disabled_toolsets suppression as the committed config (see
-  # config.yaml) so a BYO box also avoids the first-run browser/tts/media install
-  # storm that breaks exit->bash->relaunch.
-  printf 'display:\n  skin: %s\nagent:\n  disabled_toolsets:\n    - browser\n    - computer_use\n    - tts\n    - video\n    - video_gen\n    - image_gen\n    - vision\n    - spotify\n' "$skin" >/workspace/.hermes/config.yaml
+  printf 'display:\n  skin: %s\n' "$skin" >/workspace/.hermes/config.yaml
 fi
 
 # --- safety net -------------------------------------------------------------
